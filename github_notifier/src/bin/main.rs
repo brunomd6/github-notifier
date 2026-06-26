@@ -11,6 +11,34 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
+use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::delay::Delay;
+
+use esp_hal::{
+    spi::{
+        master::{Config, Spi},
+        Mode,
+    },
+    time::Rate,
+};
+    
+use embedded_hal_bus::spi::ExclusiveDevice;
+use mipidsi::{
+    Builder,
+    models::ST7735s,
+    interface::SpiInterface,
+};
+
+use embedded_graphics::{
+    pixelcolor::Rgb565,
+    prelude::*,
+    text::{Text, Baseline},
+    mono_font::{ascii::FONT_6X10, MonoTextStyle},
+};
+
+use static_cell::StaticCell;
+
+static BUFFER: StaticCell<[u8; 128]> = StaticCell::new();
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -34,6 +62,7 @@ async fn main(spawner: Spawner) -> ! {
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
+    let mut delay = Delay::new();
 
     // The following pins are used to bootstrap the chip. They are available
     // for use, but check the datasheet of the module for more information on them.
@@ -61,6 +90,69 @@ async fn main(spawner: Spawner) -> ! {
 
     // TODO: Spawn some tasks
     let _ = spawner;
+
+    esp_println::println!("something!");
+
+    let mut backlight = Output::new(peripherals.GPIO27, Level::High, OutputConfig::default());
+    backlight.set_low();
+
+    
+    // SPI pins
+    let sclk = peripherals.GPIO18;
+    let mosi = peripherals.GPIO23;
+    let cs   = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
+
+    // control pins
+    let dc  = Output::new(peripherals.GPIO26, Level::Low, OutputConfig::default());
+    let mut rst = Output::new(peripherals.GPIO25, Level::High, OutputConfig::default());
+
+    Timer::after(Duration::from_millis(50)).await;
+    rst.set_low();
+    Timer::after(Duration::from_millis(10)).await;
+    rst.set_high();
+    Timer::after(Duration::from_millis(120)).await;
+
+    // SPI
+    let spi = Spi::new(
+        peripherals.SPI2,
+        Config::default()
+            .with_frequency(Rate::from_mhz(10))
+            .with_mode(Mode::_0),
+    )
+    .expect("SPI init failed")
+    .with_sck(sclk)
+    .with_mosi(mosi)
+    .with_miso(peripherals.GPIO19); // can be ignored for display
+
+    let spi_dev = ExclusiveDevice::new_no_delay(spi, cs).unwrap();
+
+    let buffer = BUFFER.init([0u8; 128]);
+
+    let di = SpiInterface::new(
+        spi_dev,
+        dc,
+        buffer,
+    );
+
+    let mut display = Builder::new(ST7735s, di)
+        .reset_pin(rst)
+        .display_size(128, 160)
+        .display_offset(2, 1)
+        .init(&mut delay)
+        .unwrap();
+
+    display.clear(Rgb565::BLACK).unwrap();
+
+    let style = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
+
+    Text::with_baseline(
+    "Hello ESP32",
+    Point::new(10, 20),
+    style,
+    Baseline::Top,
+)
+.draw(&mut display)
+.unwrap();
 
     loop {
         Timer::after(Duration::from_secs(1)).await;

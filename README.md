@@ -40,16 +40,17 @@ cargo build
 ```
 
 ```
-docker run --rm -it -v ${PWD}:/workspace -w /workspace esp32-test bash -c "source /root/export-esp.sh && cd /workspace/github_notifier && cargo build && espflash save-image --chip esp32 target/xtensa-esp32-none-elf/debug/github_notifier github_notifier.bin"
+docker run --rm -it -v ${PWD}:/workspace -w /workspace esp32-test bash -c "source /root/export-esp.sh && cd /workspace/github_notifier && cargo build"
 ```
-
 
 ## How to Flash
 
 ```
-espflash flash -p COM4 target\xtensa-esp32-none-elf\debug\github-notifier
+espflash flash target\xtensa-esp32-none-elf\debug\github_notifier --chip esp32 --port COM4
 ```
 
+## Do Everything at Once
+
 ```
-esptool -p COM4 -b 115200 --chip esp32 --before default_reset --after hard_reset write_flash 0x0 github_notifier/github_notifier.bin
+docker run --rm -it -v ${PWD}:/workspace -w /workspace esp32-test bash -c "source /root/export-esp.sh && cd /workspace/github_notifier && cargo build"; espflash flash github_notifier\target\xtensa-esp32-none-elf\debug\github_notifier --chip esp32 --port COM4
 ```

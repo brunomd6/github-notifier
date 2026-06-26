@@ -1,11 +1,11 @@
 [package]
 edition      = "2024"
-name         = "your-project"
+name         = "github_notifier"
 rust-version = "1.88"
 version      = "0.1.0"
 
 [[bin]]
-name = "your-project"
+name = "github_notifier"
 path = "./src/bin/main.rs"
 
 [dependencies]
@@ -21,6 +21,12 @@ esp-alloc        = "0.10.0"
 
 critical-section = "1.2.0"
 static_cell      = "2.1.1"
+esp-println = { version = "0.17.0" , features = ["esp32"] }
+
+mipidsi = "0.9"
+embedded-graphics = "0.8"
+display-interface-spi = "0.5"
+embedded-hal-bus = "0.3"
 
 
 # For fine tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
