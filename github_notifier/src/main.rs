@@ -21,13 +21,6 @@ use esp_hal::{
     },
     time::Rate,
 };
-    
-use embedded_hal_bus::spi::ExclusiveDevice;
-use mipidsi::{
-    Builder,
-    models::ST7735s,
-    interface::SpiInterface,
-};
 
 use embedded_graphics::{
     pixelcolor::Rgb565,
@@ -35,6 +28,10 @@ use embedded_graphics::{
     text::{Text, Baseline},
     mono_font::{ascii::FONT_6X10, MonoTextStyle},
 };
+
+mod display;
+
+use display::init_display;
 
 use static_cell::StaticCell;
 
@@ -112,34 +109,36 @@ async fn main(spawner: Spawner) -> ! {
     rst.set_high();
     Timer::after(Duration::from_millis(120)).await;
 
-    // SPI
     let spi = Spi::new(
-        peripherals.SPI2,
-        Config::default()
-            .with_frequency(Rate::from_mhz(10))
-            .with_mode(Mode::_0),
+    peripherals.SPI2,
+    Config::default()
+        .with_frequency(Rate::from_mhz(10))
+        .with_mode(Mode::_0),
     )
-    .expect("SPI init failed")
+    .unwrap()
     .with_sck(sclk)
     .with_mosi(mosi)
-    .with_miso(peripherals.GPIO19); // can be ignored for display
+    .with_miso(peripherals.GPIO19);
 
-    let spi_dev = ExclusiveDevice::new_no_delay(spi, cs).unwrap();
+    // let spi_dev = ExclusiveDevice::new_no_delay(spi, cs).unwrap();
 
     let buffer = BUFFER.init([0u8; 128]);
 
-    let di = SpiInterface::new(
-        spi_dev,
+    let mut display = init_display(
+        spi,
+        cs,
         dc,
+        rst,
+        &mut delay,
         buffer,
     );
 
-    let mut display = Builder::new(ST7735s, di)
-        .reset_pin(rst)
-        .display_size(128, 160)
-        .display_offset(2, 1)
-        .init(&mut delay)
-        .unwrap();
+//     let mut display = Builder::new(ST7735s, di)
+//         .reset_pin(rst)
+//         .display_size(128, 160)
+//         .display_offset(2, 1)
+//         .init(&mut delay)
+//         .unwrap();
 
     display.clear(Rgb565::BLACK).unwrap();
 
