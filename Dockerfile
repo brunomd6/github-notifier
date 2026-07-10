@@ -17,6 +17,8 @@ RUN cargo install ldproxy --locked
 # RUN cargo install cargo-generate --locked
 RUN cargo install esp-generate --locked
 RUN cargo install esp-config --features=tui --locked
+RUN rustup component add rustfmt
+RUN rustup component add clippy
 # end bruno
 
 RUN echo "source /root/export-esp.sh" >> /root/.bashrc

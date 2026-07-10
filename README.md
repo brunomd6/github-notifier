@@ -46,11 +46,17 @@ docker run --rm -it -v ${PWD}:/workspace -w /workspace esp32-test bash -c "sourc
 ## How to Flash
 
 ```
-espflash flash target\xtensa-esp32-none-elf\debug\github_notifier --chip esp32 --port COM4
+espflash flash target\xtensa-esp32-none-elf\debug\github_notifier --chip esp32 --port COM4 --baud 921600
 ```
 
 ## Do Everything at Once
 
 ```
-docker run --rm -it -v ${PWD}:/workspace -w /workspace esp32-test bash -c "source /root/export-esp.sh && cd /workspace/github_notifier && cargo build"; espflash flash github_notifier\target\xtensa-esp32-none-elf\debug\github_notifier --chip esp32 --port COM4
+docker run --rm -it -v ${PWD}:/workspace -w /workspace esp32-test bash -c "source /root/export-esp.sh && cd /workspace/github_notifier && cargo build"; espflash flash github_notifier\target\xtensa-esp32-none-elf\debug\github_notifier --chip esp32 --port COM10 --baud 921600
+```
+
+## Format
+
+```
+docker run --rm -it -v ${PWD}:/workspace -w /workspace/github_notifier esp32-test bash -c "cargo fmt"
 ```

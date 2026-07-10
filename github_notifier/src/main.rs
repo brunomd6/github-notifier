@@ -10,26 +10,32 @@
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
-use esp_hal::timer::timg::TimerGroup;
-use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::delay::Delay;
+use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::rng::Rng;
+use esp_hal::timer::timg::TimerGroup;
 
 use esp_hal::{
     spi::{
-        master::{Config, Spi},
         Mode,
+        master::{Config, Spi},
     },
     time::Rate,
 };
 
 use embedded_graphics::{
+    mono_font::{MonoTextStyle, ascii::FONT_6X10},
     pixelcolor::Rgb565,
     prelude::*,
-    text::{Text, Baseline},
-    mono_font::{ascii::FONT_6X10, MonoTextStyle},
+    text::{Baseline, Text},
+    image::Image,
 };
 
+use tinybmp::Bmp;
+
 mod display;
+
+use github_notifier::wifi;
 
 use display::init_display;
 
@@ -93,14 +99,13 @@ async fn main(spawner: Spawner) -> ! {
     let mut backlight = Output::new(peripherals.GPIO27, Level::High, OutputConfig::default());
     backlight.set_low();
 
-    
     // SPI pins
     let sclk = peripherals.GPIO18;
     let mosi = peripherals.GPIO23;
-    let cs   = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
+    let cs = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
 
     // control pins
-    let dc  = Output::new(peripherals.GPIO26, Level::Low, OutputConfig::default());
+    let dc = Output::new(peripherals.GPIO26, Level::Low, OutputConfig::default());
     let mut rst = Output::new(peripherals.GPIO25, Level::High, OutputConfig::default());
 
     Timer::after(Duration::from_millis(50)).await;
@@ -110,10 +115,10 @@ async fn main(spawner: Spawner) -> ! {
     Timer::after(Duration::from_millis(120)).await;
 
     let spi = Spi::new(
-    peripherals.SPI2,
-    Config::default()
-        .with_frequency(Rate::from_mhz(10))
-        .with_mode(Mode::_0),
+        peripherals.SPI2,
+        Config::default()
+            .with_frequency(Rate::from_mhz(10))
+            .with_mode(Mode::_0),
     )
     .unwrap()
     .with_sck(sclk)
@@ -124,38 +129,27 @@ async fn main(spawner: Spawner) -> ! {
 
     let buffer = BUFFER.init([0u8; 128]);
 
-    let mut display = init_display(
-        spi,
-        cs,
-        dc,
-        rst,
-        &mut delay,
-        buffer,
-    );
-
-//     let mut display = Builder::new(ST7735s, di)
-//         .reset_pin(rst)
-//         .display_size(128, 160)
-//         .display_offset(2, 1)
-//         .init(&mut delay)
-//         .unwrap();
+    let mut display = init_display(spi, cs, dc, rst, &mut delay, buffer);
 
     display.clear(Rgb565::BLACK).unwrap();
 
     let style = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
 
-    Text::with_baseline(
-    "Hello ESP32",
-    Point::new(10, 20),
-    style,
-    Baseline::Top,
-)
-.draw(&mut display)
-.unwrap();
+    let bmp = Bmp::from_slice(include_bytes!("../assets/github_logo.bmp")).unwrap();
+
+    Image::new(&bmp, Point::zero())
+    .draw(&mut display)
+    .unwrap();
+
+    // Text::with_baseline("Hello ESP32", Point::new(10, 20), style, Baseline::Top)
+    //     .draw(&mut display)
+    //     .unwrap();
+
+    let rng = Rng::new();
+
+    let _stack = wifi::init_wifi(peripherals.WIFI, rng, &spawner).await;
 
     loop {
         Timer::after(Duration::from_secs(1)).await;
     }
-
-    // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.1.0/examples
 }
